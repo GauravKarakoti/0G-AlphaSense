@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
+import { type Abi } from 'viem';
+
+// Define a stricter type for contract configuration
+interface ContractConfig {
+  address: `0x${string}` | undefined;
+  abi: Abi;
+}
 
 // Define the structure of an analysis request
 interface AnalysisRequest {
@@ -18,9 +25,10 @@ interface AnalysisReportData {
     tokenSymbol: string;
 }
 
+// Updated props to include contractConfig
 interface AnalysisHistoryProps {
-  address: `0x${string}`;
-  contractConfig: any;
+  address: `0x${string}` | undefined;
+  contractConfig: ContractConfig;
 }
 
 export default function AnalysisHistory({ address, contractConfig }: AnalysisHistoryProps) {
@@ -29,7 +37,7 @@ export default function AnalysisHistory({ address, contractConfig }: AnalysisHis
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
   // This effect would ideally listen for contract events or query an indexer
-  // to get a real-time list of the user's requests.
+  // using the contractConfig prop to get a real-time list of the user's requests.
   useEffect(() => {
     if (!address) return;
     
@@ -47,7 +55,6 @@ export default function AnalysisHistory({ address, contractConfig }: AnalysisHis
     setIsLoadingReport(true);
     setSelectedReport(null);
     try {
-      // Use axios.get to fetch the data
       const response = await axios.get<AnalysisReportData>(`/api/analysis?cid=${request.cid}`);
       setSelectedReport(response.data);
     } catch (error) {

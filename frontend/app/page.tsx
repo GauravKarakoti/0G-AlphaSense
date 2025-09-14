@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi';
 import WalletConnector from './components/WalletConnector';
 import AnalysisRequest from './components/AnalysisRequest';
 import AnalysisHistory from './components/AnalysisHistory';
+import { type Abi } from 'viem';
 
 // --- Main Page Component ---
 export default function Home() {
@@ -11,6 +12,8 @@ export default function Home() {
   
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined;
 
+  // The `as const` assertion tells TypeScript to infer the most specific possible type.
+  // This makes the ABI compatible with the `Abi` type from viem.
   const contractConfig = {
     address: contractAddress,
     abi: [
@@ -42,7 +45,7 @@ export default function Home() {
         "stateMutability": "view",
         "type": "function"
       }
-    ]
+    ] as const, // <-- Fix is applied here
   };
   
   if (!contractAddress) {

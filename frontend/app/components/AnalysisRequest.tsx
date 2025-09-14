@@ -3,12 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { ethers } from 'ethers';
+import { type Abi } from 'viem';
+
+// Define a stricter type for contract configuration to avoid 'any'
+interface ContractConfig {
+  address: `0x${string}` | undefined;
+  abi: Abi; // Using Viem's Abi type is equivalent to readonly unknown[] but more descriptive
+}
 
 interface AnalysisRequestProps {
-  contractConfig: {
-    address: `0x${string}` | undefined;
-    abi: any[];
-  };
+  contractConfig: ContractConfig;
 }
 
 export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps) {
@@ -33,6 +37,7 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
   } = useWaitForTransactionReceipt({ hash });
 
   const handleRequestAnalysis = () => {
+    // Guards to ensure address and fee are valid before proceeding
     if (!contractConfig.address) {
       alert("Contract address is not configured.");
       return;
@@ -46,13 +51,24 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
       return;
     }
     
-    writeContract({
+    // Create a strongly-typed request object to guide TypeScript inference.
+    // This resolves the error by explicitly defining the shape of the parameters,
+    // ensuring `value` is correctly typed as a bigint.
+    const request: {
+      address: `0x${string}`;
+      abi: Abi;
+      functionName: string;
+      value: bigint;
+      args: readonly unknown[];
+    } = {
       ...contractConfig,
       address: contractConfig.address,
       functionName: 'requestAnalysis',
       value: fee,
       args: [tokenSymbol.trim().toUpperCase()]
-    });
+    };
+
+    writeContract(request);
   };
 
   useEffect(() => {
