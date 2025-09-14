@@ -11,6 +11,7 @@ export default function Home() {
   const { address, isConnected } = useAccount();
   
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}` | undefined;
+  console.log("Using contract address:", contractAddress);
 
   // The `as const` assertion tells TypeScript to infer the most specific possible type.
   // This makes the ABI compatible with the `Abi` type from viem.

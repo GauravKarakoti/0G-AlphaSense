@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+// Import hooks and utilities from CDN to resolve dependencies in the browser environment
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { ethers } from 'ethers';
 import { type Abi } from 'viem';
@@ -8,7 +9,7 @@ import { type Abi } from 'viem';
 // Define a stricter type for contract configuration to avoid 'any'
 interface ContractConfig {
   address: `0x${string}` | undefined;
-  abi: Abi; // Using Viem's Abi type is equivalent to readonly unknown[] but more descriptive
+  abi: Abi; // Using Viem's Abi type is more descriptive than readonly unknown[]
 }
 
 interface AnalysisRequestProps {
@@ -18,7 +19,13 @@ interface AnalysisRequestProps {
 export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps) {
   const [tokenSymbol, setTokenSymbol] = useState('');
 
-  const { data: fee } = useReadContract({
+  const { 
+    data: fee, 
+    isLoading: isFeeLoading, 
+    isError: isFeeError,
+    error: feeError, // Capture the specific error object
+    refetch: refetchFee // Function to manually refetch the fee
+  } = useReadContract({
     ...contractConfig,
     functionName: 'FEE',
   });
@@ -37,38 +44,27 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
   } = useWaitForTransactionReceipt({ hash });
 
   const handleRequestAnalysis = () => {
-    // Guards to ensure address and fee are valid before proceeding
+    // Guards to ensure address and tokenSymbol are valid before proceeding
     if (!contractConfig.address) {
-      alert("Contract address is not configured.");
+      console.error("Contract address is not configured.");
       return;
     }
     if (!tokenSymbol.trim()) {
-      alert('Please enter a token symbol');
-      return;
-    }
-    if (typeof fee !== 'bigint') {
-      alert('Could not retrieve the analysis fee. Please try again.');
+      console.error('Please enter a token symbol');
       return;
     }
     
-    // Create a strongly-typed request object to guide TypeScript inference.
-    // This resolves the error by explicitly defining the shape of the parameters,
-    // ensuring `value` is correctly typed as a bigint.
-    const request: {
-      address: `0x${string}`;
-      abi: Abi;
-      functionName: string;
-      value: bigint;
-      args: readonly unknown[];
-    } = {
-      ...contractConfig,
-      address: contractConfig.address,
-      functionName: 'requestAnalysis',
-      value: fee,
-      args: [tokenSymbol.trim().toUpperCase()]
-    };
-
-    writeContract(request);
+    if (typeof fee === 'bigint') {
+      writeContract({
+        address: contractConfig.address,
+        abi: contractConfig.abi,
+        functionName: 'requestAnalysis',
+        value: fee,
+        args: [tokenSymbol.trim().toUpperCase()]
+      });
+    } else {
+      console.error('Could not retrieve the analysis fee. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -76,6 +72,17 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
       setTokenSymbol('');
     }
   }, [isConfirmed]);
+  
+  // New useEffect to log the detailed fee-fetching error
+  useEffect(() => {
+    if (isFeeError && feeError) {
+      console.error("Error fetching contract fee:", feeError);
+    }
+  }, [isFeeError, feeError]);
+
+  useEffect(() => {
+    console.log('Fee value updated:', fee);
+  }, [fee]);
 
   const isProcessing = isWritePending || isConfirming;
 
@@ -99,9 +106,22 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
         </div>
         
         <div className="p-3 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-600">
-            Analysis Fee: {typeof fee === 'bigint' ? ethers.formatEther(fee) : '...'} ETH
-          </p>
+          <div className="text-sm text-gray-600 flex items-center justify-between">
+            <div>
+              <span>Analysis Fee: </span>
+              {isFeeLoading && <span className="text-gray-500">Loading...</span>}
+              {isFeeError && <span className="text-red-500 font-medium">Error fetching fee</span>}
+              {typeof fee === 'bigint' && <span>{ethers.formatEther(fee)} ETH</span>}
+            </div>
+            {isFeeError && (
+              <button 
+                onClick={() => refetchFee()}
+                className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md px-2 py-1"
+              >
+                Retry
+              </button>
+            )}
+          </div>
           <p className="text-xs text-gray-500 mt-1">
             This fee covers data processing and AI analysis on the 0G network.
           </p>
@@ -109,7 +129,7 @@ export default function AnalysisRequest({ contractConfig }: AnalysisRequestProps
 
         <button
           onClick={handleRequestAnalysis}
-          disabled={isProcessing || !tokenSymbol.trim() || typeof fee !== 'bigint'}
+          disabled={isProcessing || !tokenSymbol.trim() || typeof fee !== 'bigint' || isFeeLoading}
           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isWritePending ? 'Confirming...' : 
