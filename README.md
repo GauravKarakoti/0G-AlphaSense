@@ -69,7 +69,7 @@
     ```bash
     cd contracts
     npx hardhat compile
-    npx hardhat run scripts/deploy.js --network zeroGTestnet
+    npx hardhat run scripts/deploy.js --network 0g-testnet
     ```
     Update the frontend's `.env` file with the new contract address.
 
